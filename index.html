@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LETTER RELAY | 7일간의 편지</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+
+    <div class="theme-toggle-container">
+        <button id="theme-toggle-btn" onclick="toggleTheme()" title="화면 모드 변경">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <header>
+        <h1>7 Days Exchange Letter</h1>
+        <p>두 명의 캐릭터가 교차하며 자아내는 7일간의 연극록</p>
+    </header>
+
+    <div class="link-share-bar">
+        <span id="current-url-display">주소를 불러오는 중...</span>
+        <button onclick="copyLink()"><i class="fas fa-copy"></i> 방 링크 복사</button>
+    </div>
+
+    <main class="timeline" id="letter-timeline">
+        </main>
+
+    <div class="reply-box" id="reply-box-zone">
+        <div class="reply-form" id="reply-form-wrapper">
+            
+            <div class="img-preview-container" id="preview-gallery-container"></div>
+            
+            <div class="character-meta-inputs custom-dropdown" id="sender-select-container">
+                <div class="dropdown-trigger" id="dropdown-trigger-btn" onclick="toggleDropdown(event)">
+                    <span id="selected-sender-label">캐릭터 선택</span>
+                    <i class="fas fa-chevron-down arrow-icon"></i>
+                </div>
+                <div class="dropdown-menu" id="custom-dropdown-menu"></div>
+            </div>
+
+            <textarea id="reply-text" placeholder="이곳에 캐릭터의 편지 내용을 적어주세요..."></textarea>
+            
+            <div class="reply-actions">
+                <label class="file-upload-btn" title="편지 이미지 첨부 (여러 장 가능)">
+                    <i class="fas fa-image"></i>
+                    <input type="file" id="image-input" accept="image/*" multiple onchange="handleMultipleImageUpload(this)">
+                </label>
+                <button class="submit-btn" onclick="sendLetter()">편지 남기기 <i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="context-menu" id="custom-menu">
+        <div class="context-menu-item" onclick="openEditModal()"><i class="fas fa-edit"></i> 내용 수정</div>
+        <div class="context-menu-item delete" onclick="openDeleteModal()"><i class="fas fa-trash-alt"></i> 편지 삭제</div>
+    </div>
+
+    <div class="modal-overlay" id="setup-modal" style="display: none;">
+        <div class="modal-content">
+            <h3><i class="fas fa-user-cog"></i> 편지를 교환할 캐릭터 등록</h3>
+            <input type="text" id="setup-char-1" placeholder="첫 번째 캐릭터 이름" class="setup-input">
+            <input type="text" id="setup-char-2" placeholder="두 번째 캐릭터 이름" class="setup-input" style="margin-top: 10px;">
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="modal-btn save" style="width: 100%;" onclick="submitCharacterSetup()"> 시작하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-feather-alt"></i> 편지 수정하기</h3>
+            <textarea id="modal-edit-text"></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="closeEditModal()">취소</button>
+                <button class="modal-btn save" onclick="submitEdit()">수정 완료</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal-content text-center">
+            <h3 style="color: #ff7675;"><i class="fas fa-exclamation-triangle"></i> 편지 삭제하기</h3>
+            <p style="color: var(--text-muted); font-size: 14px;">이 편지를 기록에서 영구히 삭제하시겠습니까?</p>
+            <div class="modal-actions" style="justify-content: center; gap: 15px;">
+                <button class="modal-btn cancel" onclick="closeDeleteModal()">취소</button>
+                <button class="modal-btn" style="background: #ff7675; color: white;" onclick="submitDelete()">영구 삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="rename-modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-user-edit"></i> 캐릭터 이름 변경</h3>
+            <input type="text" id="rename-char-1" class="setup-input">
+            <input type="text" id="rename-char-2" class="setup-input" style="margin-top: 10px;">
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="modal-btn cancel" onclick="closeRenameModal()">취소</button>
+                <button class="modal-btn save" onclick="submitRename()">이름 변경 반영</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="view-modal" onclick="closeViewModal(event)">
+        <div class="modal-view-content" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="closeViewModal(event)"><i class="fas fa-times"></i></button>
+            <div class="modal-view-header" id="view-modal-header"></div>
+            
+            <div class="modal-view-body">
+                <div class="modal-view-img-container" id="view-modal-img-container">
+                    
+                    <button class="slide-nav-btn prev" id="slide-prev-btn" onclick="navigateSlider(-1)">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="slide-nav-btn next" id="slide-next-btn" onclick="navigateSlider(1)">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+
+                    <div class="modal-view-img-box" id="view-modal-img-box">
+                        </div>
+                    
+                    <div class="slider-indicator" id="view-slider-indicator"></div>
+                    <div class="viewer-tip"><i class="fas fa-search-plus"></i> 마우스 휠: 확대/축소 | 드래그: 이동 | 화살표: 전환</div>
+                </div>
+                
+                <div class="modal-view-text" id="view-modal-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+/* ==========================================================================
+   📌 1. 글로벌 테마 및 가변 스위칭 설정
+   ========================================================================== */
+.theme-dark {
+    --bg-color: #0c0c0e;          /* 전체 배경 (가장 어두움) */
+    --card-bg: #16161a;           /* 편지 카드 배경 (짙은 회색) */
+    --text-dark: #f1f2f6;         /* 밝은 글자색 */
+    --header-text: #ffffff;       /* 헤더 강조 글자색 */
+    --text-muted: #a4b0be;        /* 부가 설명 글자색 */
+    --input-bg: rgba(255, 255, 255, 0.04);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --form-bg: #16161a;           /* 하단 작성창 배경 */
+    --modal-bg: #16161a;          /* 일반 모달 배경 */
+    --modal-text: #ffffff;
+    --toast-bg: rgba(142, 123, 243, 0.9);
+    --dropdown-menu-bg: #1e1e24;
+    --dropdown-hover: rgba(142, 123, 243, 0.15);
+    
+    /* 열람 팝업창 전용 다크모드 변수 */
+    --view-modal-bg: #16161a;     
+    --view-modal-text: #ffffff;   
+    --view-text-block-bg: #202026;
+    --view-border: #25252e;       
+    --close-btn-bg: #25252e;      
+    --close-btn-text: #a4b0be;    
+}
+
+.theme-light {
+    --bg-color: #f5f6fa;
+    --card-bg: #ffffff;
+    --text-dark: #2d3436;         /* 어두운 글자색 */
+    --header-text: #1e272e;
+    --text-muted: #747d8c;
+    --input-bg: rgba(0, 0, 0, 0.03);
+    --border-color: rgba(0, 0, 0, 0.08);
+    --form-bg: #ffffff;
+    --modal-bg: #ffffff;
+    --modal-text: #1e272e;
+    --toast-bg: rgba(108, 92, 231, 0.95);
+    --dropdown-menu-bg: #ffffff;
+    --dropdown-hover: rgba(108, 92, 231, 0.08);
+    
+    /* 열람 팝업창 전용 라이트모드 변수 */
+    --view-modal-bg: #ffffff;
+    --view-modal-text: #2d3436;
+    --view-text-block-bg: #fafafa;
+    --view-border: #f1f2f6;
+    --close-btn-bg: #f1f2f6;
+    --close-btn-text: #555555;
+}
+
+:root { --accent: #8e7bf3; }
+
+body {
+    background-color: var(--bg-color); color: var(--header-text);
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.theme-toggle-container { position: fixed; top: 20px; right: 20px; z-index: 100; }
+#theme-toggle-btn {
+    background: var(--form-bg); border: 1px solid var(--border-color); color: var(--accent);
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+header { width: 100%; max-width: 600px; padding: 45px 20px 20px 20px; box-sizing: border-box; text-align: center; }
+header h1 { font-size: 26px; margin: 0 0 8px 0; font-weight: 800; }
+.theme-dark header h1 { background: linear-gradient(45deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+header p { color: var(--text-muted); font-size: 13px; margin: 0; }
+
+.link-share-bar {
+    background: var(--input-bg); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 30px;
+    display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 30px;
+    width: calc(100% - 40px); max-width: 560px;
+}
+.link-share-bar span { font-size: 13px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.link-share-bar button { background: var(--accent); border: none; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; }
+
+.timeline { width: 100%; max-width: 600px; padding: 0 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 35px; margin-bottom: 240px; }
+
+
+/* ==========================================================================
+   📌 2. 편지 카드 타임라인 & 블러 봉인 시스템 (UI/UX 원상복구)
+   ========================================================================== */
+.letter-card { 
+    background: var(--card-bg); color: var(--text-dark); border-radius: 16px; padding: 25px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06); position: relative; cursor: pointer; overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+}
+
+/* 클릭해서 열기 전(sealed 상태) 내부 알맹이 완벽 차단 흐림 처리 */
+.letter-card.sealed .letter-img-box, 
+.letter-card.sealed .letter-content { 
+    filter: blur(3px); 
+    opacity: 0.85; 
+    pointer-events: none; 
+    user-select: none;
+}
+
+.letter-seal-overlay { 
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    z-index: 5; 
+    background: transparent;
+}
+.seal-icon { font-size: 38px; margin-bottom: 10px; }
+.seal-text { 
+    font-size: 12px; font-weight: bold; color: var(--accent); 
+    background: var(--card-bg); padding: 6px 14px; border-radius: 20px; 
+    border: 1px solid rgba(142, 123, 243, 0.25); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes pulseSeal { 
+    0%, 100% { transform: scale(1); opacity: 0.85; } 
+    50% { transform: scale(1.08); opacity: 1; filter: drop-shadow(0 0 8px var(--accent)); } 
+}
+
+.letter-meta { 
+    font-size: 12px; font-weight: bold; color: var(--text-muted); margin-bottom: 15px; 
+    display: flex; justify-content: space-between; align-items: center; 
+    border-bottom: 1px solid var(--border-color); padding-bottom: 12px; 
+}
+.letter-meta .day-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 6px; }
+.letter-meta .sender-name { font-size: 14px; font-weight: 700; margin-left: 8px; color: var(--text-dark); }
+
+.letter-img-box { width: 100%; margin-bottom: 15px; border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.05); position: relative; }
+.theme-dark .letter-img-box { background: rgba(255,255,255,0.03); }
+.letter-img-box img { width: 100%; height: auto; max-height: 400px; object-fit: contain; display: block; }
+.letter-img-count-badge { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.65); color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; backdrop-filter: blur(2px); }
+.letter-content { font-size: 15px; line-height: 1.8; word-break: break-all; white-space: pre-wrap; color: var(--text-dark); }
+
+
+/* ==========================================================================
+   📌 3. 하단 작성 폼 및 다중 업로드 파일 칩
+   ========================================================================== */
+.reply-box { width: 100%; max-width: 600px; padding: 0 20px 20px 20px; box-sizing: border-box; position: sticky; bottom: 0; z-index: 10; }
+.reply-form { background: var(--form-bg); border: 1px solid var(--border-color); border-radius: 24px; padding: 18px; box-shadow: 0 -10px 40px rgba(0,0,0,0.15); }
+
+.img-preview-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; width: 100%; }
+.img-manage-chip { display: flex; align-items: center; gap: 6px; background: rgba(142, 123, 243, 0.15); border: 1px solid rgba(142, 123, 243, 0.3); padding: 6px 10px; border-radius: 12px; font-size: 12px; color: var(--header-text); }
+.img-manage-chip span { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.img-manage-chip button { background: none; border: none; color: var(--header-text); cursor: pointer; padding: 0 2px; font-size: 11px; opacity: 0.7; }
+.img-manage-chip button:hover { opacity: 1; color: var(--accent); }
+.img-manage-chip .del-btn { color: #ff7675; margin-left: 4px; font-size: 13px; }
+
+.custom-dropdown { position: relative; width: 100%; }
+.dropdown-trigger { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 12px; color: var(--header-text); padding: 12px 14px; font-size: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; box-sizing: border-box; }
+.dropdown-menu { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; width: 100%; background: var(--dropdown-menu-bg); border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); z-index: 50; overflow: hidden; padding: 6px 0; }
+.custom-dropdown.open .dropdown-menu { display: block; }
+.dropdown-item { padding: 12px 16px; font-size: 14px; color: var(--header-text); cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.dropdown-item:hover { background: var(--dropdown-hover); color: var(--accent); }
+.dropdown-item.selected { background: rgba(142, 123, 243, 0.1); color: var(--accent); font-weight: bold; }
+
+.reply-form textarea { width: 100%; background: transparent; border: none; color: var(--header-text); resize: none; font-size: 14px; height: 70px; outline: none; font-family: inherit; box-sizing: border-box; padding: 10px 5px; }
+.reply-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+.file-upload-btn { color: var(--text-muted); cursor: pointer; font-size: 18px; }
+.file-upload-btn:hover { color: var(--accent); }
+.file-upload-btn input { display: none; }
+.submit-btn { background: var(--accent); color: white; border: none; padding: 8px 20px; border-radius: 14px; font-weight: bold; cursor: pointer; }
+
+
+/* ==========================================================================
+   📌 4. 모달 팝업 레이아웃 및 셋업 관리 공통
+   ========================================================================== */
+.archive-locked-box { background: linear-gradient(135deg, var(--form-bg) 0%, var(--bg-color) 100%); border: 1px solid rgba(142, 123, 243, 0.2); border-radius: 24px; padding: 25px; text-align: center; }
+.new-room-btn { background: linear-gradient(45deg, var(--accent), #6c5ce7); color: white; border: none; padding: 10px 22px; border-radius: 30px; font-weight: bold; cursor: pointer; }
+.setup-input { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 12px; color: var(--header-text); padding: 12px 14px; font-size: 14px; outline: none; box-sizing: border-box; }
+
+.context-menu { display: none; position: absolute; background: #ffffff; color: #222; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); z-index: 1000; padding: 4px 0; min-width: 130px; }
+.context-menu-item { padding: 10px 15px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.context-menu-item:hover { background: #f1f2f6; color: var(--accent); }
+.context-menu-item.delete { color: #ff7675; }
+
+.modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(6px); z-index: 2000; align-items: center; justify-content: center; }
+.modal-content { background: var(--modal-bg); border: 1px solid var(--border-color); border-radius: 20px; width: 90%; max-width: 440px; padding: 25px; color: var(--modal-text); box-sizing: border-box; }
+.modal-content textarea { width: 100%; height: 150px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 12px; color: var(--header-text); padding: 12px; font-size: 14px; outline: none; resize: none; box-sizing: border-box; font-family: inherit; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+.modal-btn { border: none; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer; }
+.modal-btn.cancel { background: #dfe4ea; color: #57606f; }
+.theme-dark .modal-btn.cancel { background: #2f3542; color: #a4b0be; }
+.modal-btn.save { background: var(--accent); color: white; }
+
+
+/* ==========================================================================
+   📌 5. [핵심 수정] 초대형 화면 대응 극장식 이미지/텍스트 가변 팝업
+   ========================================================================== */
+.modal-view-content { 
+    background: var(--view-modal-bg); color: var(--view-modal-text); border-radius: 28px; 
+    width: 92vw;               
+    max-width: 600px; /* 기본값 (텍스트 전용일 때 조절됨) */         
+    max-height: 92vh;          
+    padding: 35px; 
+    box-shadow: 0 35px 90px rgba(0,0,0,0.55); box-sizing: border-box; 
+    position: relative; 
+    display: flex; flex-direction: column; 
+    transition: max-width 0.3s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.3s ease, color 0.3s ease;
+    animation: zoomInEffect 0.22s cubic-bezier(0.075, 0.82, 0.165, 1) forwards; 
+}
+
+.modal-close-btn { 
+    position: absolute; top: 18px; right: 18px; 
+    background: var(--close-btn-bg); color: var(--close-btn-text); 
+    border: none; width: 36px; height: 36px; border-radius: 50%; 
+    display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; z-index: 100; 
+    transition: background-color 0.3s;
+}
+
+.modal-view-header { flex-shrink: 0; margin-bottom: 20px; border-bottom: 1px solid var(--view-border); padding-bottom: 15px; }
+.modal-view-header .day-badge { background: var(--accent); color: #fff; padding: 4px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+.modal-view-header .sender-name { font-size: 18px; font-weight: 800; color: var(--view-modal-text); margin-left: 10px; }
+
+.modal-view-body { 
+    display: flex; flex-direction: column; gap: 20px; 
+    overflow-y: auto; flex-grow: 1; 
+}
+.modal-view-body::-webkit-scrollbar { width: 6px; }
+.modal-view-body::-webkit-scrollbar-thumb { background: #dfe4ea; border-radius: 10px; }
+
+/* 🌟 [정중앙 정렬 완성] 이미지 극장 무대 컨테이너 */
+.modal-view-img-container {
+    width: 100%; height: 55vh; 
+    border-radius: 14px; overflow: hidden; background: #111113; 
+    position: relative; flex-shrink: 0; display: none;
+}
+
+/* 🌟 내부 영역 전체 정중앙 좌표 정렬 선언 */
+.modal-view-img-box { 
+    width: 100%; height: 100%; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; 
+}
+
+/* 🌟 슬라이드 전환 및 이미지 완전 가운데 바인딩 */
+.modal-view-img-box img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain; transform-origin: center center;
+    user-select: none; -webkit-user-drag: none; cursor: grab;
+    position: relative; /* absolute 해제로 꼬임 방지 및 정중앙 유치 */
+}
+.modal-view-img-box img:active { cursor: grabbing; }
+
+/* 🌟 [위치 정상화] 넘김 버튼 (좌우 화살표를 슬라이더 안쪽에 완벽 배치) */
+.slide-nav-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5); border: none; color: white;
+    width: 48px; height: 48px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; z-index: 95; transition: background 0.2s, opacity 0.2s;
+}
+.slide-nav-btn:hover { background: var(--accent); }
+.slide-nav-btn.prev { left: 20px; }
+.slide-nav-btn.next { right: 20px; }
+.slide-nav-btn:disabled { opacity: 0.15; cursor: not-allowed; }
+
+.slider-indicator { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 94; }
+.slider-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); transition: background 0.2s; }
+.slider-dot.active { background: var(--accent); width: 20px; border-radius: 4px; }
+
+.viewer-tip { position: absolute; bottom: 12px; right: 12px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 11px; padding: 5px 12px; border-radius: 6px; pointer-events: none; z-index: 93; }
+
+/* 🌟 팝업창 안쪽 텍스트 영역 테마 및 속성 교정 */
+.modal-view-text { 
+    font-size: 16px; line-height: 1.9; white-space: pre-wrap; word-break: break-all; 
+    color: var(--view-modal-text); font-weight: 400; 
+    background: var(--view-text-block-bg); padding: 30px; 
+    border-radius: 14px; border: 1px solid var(--view-border); box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+
+/* ==========================================================================
+   📌 6. 시스템 트랜지션 애니메이션 오케스트라
+   ========================================================================== */
+.slide-in-right { animation: slideInR 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.slide-in-left { animation: slideInL 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+
+@keyframes slideInR { 0% { transform: translateX(60px); opacity: 0.4; } 100% { transform: translateX(0); opacity: 1; } }
+@keyframes slideInL { 0% { transform: translateX(-60px); opacity: 0.4; } 100% { transform: translateX(0); opacity: 1; } }
+
+.toast-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 9999; pointer-events: none; }
+.custom-toast { background: var(--toast-bg); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: bold; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: toastFadeInOut 2.5s ease forwards; text-align: center; }
+
+@keyframes toastFadeInOut { 0% { opacity: 0; transform: translateY(15px); } 15%, 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+@keyframes zoomInEffect { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.effect-ink { animation: inkFade 1s ease-out forwards; }
+@keyframes inkFade { 0% { opacity:0; filter:blur(4px); transform:translateY(10px); } 100% { opacity:1; filter:blur(0); transform:translateY(0); } }
