@@ -1,18 +1,11 @@
-// 1. 방 고유 코드 분기 및 URL 파싱 시스템
+// ==========================================================================
+// 📌 1. URL 파싱 및 [무서버 데이터 엔진] 탑재 (새로고침/링크 공유 방어)
+// ==========================================================================
 let urlParams = new URLSearchParams(window.location.search);
 let roomCode = urlParams.get('room');
-if (!roomCode) {
-    createNewRoom();
-} else {
-    document.getElementById('current-url-display').innerText = window.location.href;
-}
 
-function createNewRoom() {
-    const newCode = 'room_' + Math.random().toString(36).substring(2, 9);
-    window.location.href = `?room=${newCode}`;
-}
-
-// 2. 비회원 검증 토큰 발급
+// 전역 변수 초기화 상태 선언
+let roomData = [];
 let myToken = localStorage.getItem('relay_user_token');
 if (!myToken) {
     myToken = 'usr_' + Math.random().toString(36).substring(2, 9);
@@ -22,10 +15,10 @@ if (!myToken) {
 let currentSelectedSender = ""; 
 let selectedLetterIdForMenu = null;
 
-// 🌟 다중 이미지 업로드 관리용 대기열 배열
+// 다중 이미지 업로드 관리용 대기열 배열
 let attachedImagesArray = []; 
 
-// 🌟 글로벌 이미지 조작 및 슬라이더 인덱스 관리자
+// 글로벌 이미지 조작 및 슬라이더 인덱스 관리자
 let activeImagesList = [];
 let currentSliderIdx = 0;
 let imgScale = 1;
@@ -45,6 +38,7 @@ const modalTextArea = document.getElementById('modal-edit-text');
 
 function showToast(message) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = 'custom-toast';
     toast.innerText = message;
@@ -52,14 +46,68 @@ function showToast(message) {
     setTimeout(() => { toast.remove(); }, 2500);
 }
 
+// 🌟 [핵심] 데이터를 로드할 때 URL 파라미터를 최우선으로 검증합니다.
+function initRoom() {
+    const encodedData = urlParams.get('data'); // 주소창에서 ?data= 값 추출
+
+    if (encodedData) {
+        // 1단계: 누군가로부터 공유받았거나 데이터가 구워진 링크로 들어온 경우
+        try {
+            // URL 안전 문자열을 디코딩하고 UTF-8 글자 깨짐을 방지하며 복원
+            const decodedString = decodeURIComponent(atob(encodedData));
+            const parsed = JSON.parse(decodedString);
+            
+            // 데이터 구조 분기 처리 (설정 설정 및 편지 리스트 추출)
+            if (parsed.config && parsed.letters) {
+                roomCode = parsed.roomCode || roomCode || "shared_room";
+                roomData = parsed.letters;
+                // 백업 보존용 local 보관함 동기화
+                localStorage.setItem(`relay_config_${roomCode}`, JSON.stringify(parsed.config));
+                localStorage.setItem(`relay_db_${roomCode}`, JSON.stringify(roomData));
+            } else {
+                // 구버전 배열 형태 예외 처리 방어
+                roomData = Array.isArray(parsed) ? parsed : [];
+            }
+            
+            document.getElementById('current-url-display').innerText = window.location.href;
+            completeInitProcess();
+            return; // 로컬 검증 과정을 생략하고 즉시 화면을 띄웁니다.
+        } catch (e) {
+            console.error("데이터 URL 복원 실패:", e);
+            showToast("⚠️ 편지 데이터를 읽어오는 중 오류가 발생했습니다.");
+        }
+    }
+
+    // 2단계: 주소창에 데이터가 없다면 일반적인 방 코드 생성 분기로 진입
+    if (!roomCode) {
+        createNewRoom();
+    } else {
+        document.getElementById('current-url-display').innerText = window.location.href;
+        roomData = getRoomData();
+        completeInitProcess();
+    }
+}
+
+function createNewRoom() {
+    const newCode = 'room_' + Math.random().toString(36).substring(2, 9);
+    window.location.href = `?room=${newCode}`;
+}
+
 function getRoomData() {
     let data = localStorage.getItem(`relay_db_${roomCode}`);
     return data ? JSON.parse(data) : [];
 }
 
+// 🌟 데이터 저장 시 용량 초과 에러가 발생하면 사용자에게 경고하도록 보완
 function saveRoomData(data) {
-    localStorage.setItem(`relay_db_${roomCode}`, JSON.stringify(data));
-    renderTimeline();
+    try {
+        roomData = data;
+        localStorage.setItem(`relay_db_${roomCode}`, JSON.stringify(data));
+        renderTimeline();
+    } catch (error) {
+        console.error("Storage error:", error);
+        showToast("⚠️ 이미지 용량이 너무 커서 저장에 실패했습니다! 다른 사진을 이용해 주세요.");
+    }
 }
 
 function getCharacterConfig() {
@@ -67,7 +115,8 @@ function getCharacterConfig() {
     return config ? JSON.parse(config) : null;
 }
 
-function initCheck() {
+// 🌟 방 초기화 프로세스의 최종 마무리 단계 분리
+function completeInitProcess() {
     const savedTheme = localStorage.getItem('relay_theme') || 'dark';
     document.body.className = `theme-${savedTheme}`;
     updateThemeButtonIcon(savedTheme);
@@ -90,6 +139,15 @@ function initCheck() {
     document.addEventListener('mouseup', () => { isDraggingImg = false; });
 }
 
+// 최초 로딩 타이밍 바인딩 엔진 교체
+window.addEventListener('DOMContentLoaded', () => {
+    initRoom();
+});
+
+
+// ==========================================================================
+// 📌 2. 테마 설정 및 캐릭터 셋업 시스템
+// ==========================================================================
 function toggleTheme() {
     const currentTheme = document.body.classList.contains('theme-dark') ? 'dark' : 'light';
     const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -122,7 +180,7 @@ function submitCharacterSetup() {
             writer: "system",
             sender: "시스템 안내",
             content: `🎭 두 캐릭터 [ ${char1} ] 와 [ ${char2} ] 의 교환편지가 배정되었습니다.\n\n선택창을 우클릭하면 등록한 두 캐릭터의 이름을 언제든 바꿀 수 있습니다.\n\n해당 웹사이트는 트위터(현 X) 카이싱(@eyemark10051)님의 \n7일 프로젝트(https://posty.pe/aflskd)를 기반으로 하여 만들어졌습니다.\n문제가 생길 경우 내려갈 수 있습니다.`,
-            img: ""
+            imgs: []
         }
     ]);
 }
@@ -196,7 +254,11 @@ function submitRename() {
     updateSenderSelect(newConfig);
     closeRenameModal();
 }
-// 🌟 [용량 초과 방지] 이미지를 적정 크기로 압축하여 localStorage 보관을 가능하게 하는 엔진
+
+
+// ==========================================================================
+// 📌 3. 이미지 압축 및 대기열 관리 기지
+// ==========================================================================
 function handleMultipleImageUpload(input) {
     const files = Array.from(input.files);
     if (files.length === 0) return;
@@ -210,14 +272,12 @@ function handleMultipleImageUpload(input) {
             img.src = e.target.result;
             
             img.onload = function() {
-                // 🌟 압축 캔버스 생성 (최대 해상도 가이드라인 1024px)
                 const canvas = document.createElement('canvas');
                 const MAX_WIDTH = 1024;
                 const MAX_HEIGHT = 1024;
                 let width = img.width;
                 let height = img.height;
 
-                // 비율 유지하며 크기 리사이징 계산
                 if (width > height) {
                     if (width > MAX_WIDTH) {
                         height *= MAX_WIDTH / width;
@@ -236,16 +296,15 @@ function handleMultipleImageUpload(input) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // 🌟 화질을 0.7(70%) 정도로 압축하여 용량을 수십 분의 일로 다이어트!
+                // 화질을 0.7 정도로 압축하여 주소창 용량 폭발 사전 차단!
                 const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
                 attachedImagesArray.push({
-                    name: file.name.replace(/\.[^/.]+$/, "") + ".jpg", // jpeg 포맷 통일
+                    name: file.name.replace(/\.[^/.]+$/, "") + ".jpg", 
                     base64: compressedBase64
                 });
 
                 loadedCount++;
-                // 모든 파일 변환 및 압축이 끝나면 화면에 칩 표시
                 if (loadedCount === files.length) {
                     renderImagePreviewChips();
                     input.value = ""; 
@@ -256,19 +315,9 @@ function handleMultipleImageUpload(input) {
     });
 }
 
-// 🌟 [추가 안전장치] 데이터 저장 시 용량 초과 에러가 발생하면 사용자에게 친절하게 경고창을 띄우도록 saveRoomData 함수도 보완합니다.
-function saveRoomData(data) {
-    try {
-        localStorage.setItem(`relay_db_${roomCode}`, JSON.stringify(data));
-        renderTimeline();
-    } catch (error) {
-        console.error("Storage error:", error);
-        showToast("⚠️ 이미지 용량이 너무 커서 저장에 실패했습니다! 다른 사진을 이용해 주세요.");
-    }
-}
-// 🌟 첨부 대기 이미지 정렬 칩 및 내비게이션 기능 렌더러
 function renderImagePreviewChips() {
     const container = document.getElementById('preview-gallery-container');
+    if(!container) return;
     container.innerHTML = "";
 
     attachedImagesArray.forEach((imgObj, idx) => {
@@ -288,7 +337,6 @@ function movePreviewOrder(idx, direction) {
     const targetIdx = idx + direction;
     if (targetIdx < 0 || targetIdx >= attachedImagesArray.length) return;
     
-    // 원소 스와핑
     const temp = attachedImagesArray[idx];
     attachedImagesArray[idx] = attachedImagesArray[targetIdx];
     attachedImagesArray[targetIdx] = temp;
@@ -301,10 +349,15 @@ function removePreviewImage(idx) {
     renderImagePreviewChips();
 }
 
+
+// ==========================================================================
+// 📌 4. 타임라인 렌더링 및 편지 전송 시스템
+// ==========================================================================
 function renderTimeline() {
     const timeline = document.getElementById('letter-timeline');
+    if(!timeline) return;
     timeline.innerHTML = "";
-    const letters = getRoomData();
+    const letters = roomData; // 원본 구조 보존 동기화
 
     let currentDay = 1;
     let dayProgress = []; 
@@ -327,12 +380,11 @@ function renderTimeline() {
 
         const isMine = letter.writer === myToken;
         
-        // 다중 이미지 렌더 바인딩 (첫 장만 대표로 출력)
         let imgHtml = "";
         if (letter.imgs && letter.imgs.length > 0) {
             let badgeHtml = letter.imgs.length > 1 ? `<div class="letter-img-count-badge">+${letter.imgs.length}장</div>` : "";
             imgHtml = `<div class="letter-img-box"><img src="${letter.imgs[0]}" alt="uploaded">${badgeHtml}</div>`;
-        } else if (letter.img) { // 구버전 호환용
+        } else if (letter.img) { 
             imgHtml = `<div class="letter-img-box"><img src="${letter.img}" alt="uploaded"></div>`;
         }
         
@@ -372,14 +424,12 @@ function checkArchiveStatus(finalDay, totalValidLetters) {
 }
 
 function sendLetter() {
-    if (!currentSelectedSender) return showToast("편지를 보내는 주체 캐릭터를 선택해 주세요.");
+    if (!currentSelectedSender) return showToast("편지를 보내는 주체 캐릭터를선택해 주세요.");
     const text = document.getElementById('reply-text').value.trim();
 
     if (!text && attachedImagesArray.length === 0) return showToast("편지 내용이나 이미지를 추가해 주세요.");
 
     let currentData = getRoomData();
-    
-    // 순서 정렬이 완수된 대기열 기지에서 base64 알맹이만 추출하여 저장
     const finalImgs = attachedImagesArray.map(obj => obj.base64);
 
     const newLetter = {
@@ -395,11 +445,16 @@ function sendLetter() {
 
     document.getElementById('reply-text').value = "";
     attachedImagesArray = [];
-    document.getElementById('preview-gallery-container').innerHTML = "";
+    const previewGallery = document.getElementById('preview-gallery-container');
+    if(previewGallery) previewGallery.innerHTML = "";
 
     setTimeout(() => { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }, 100);
 }
 
+
+// ==========================================================================
+// 📌 5. 컨텍스트 메뉴 및 수정/삭제 모달 분기
+// ==========================================================================
 function openContextMenu(e, letterId) {
     e.preventDefault(); e.stopPropagation(); 
     selectedLetterIdForMenu = letterId;
@@ -433,7 +488,11 @@ function submitDelete() {
     saveRoomData(currentData);
     closeDeleteModal();
 }
-// 🌟 [최종 완성형 오픈 모달 엔진] 사진 유무 / 텍스트 유무에 따라 크기와 노출 여부를 동적 제어
+
+
+// ==========================================================================
+// 📌 6. [극장식 대화면 뷰어] 이미지 정중앙 슬라이더 정밀 제어 엔진
+// ==========================================================================
 function openViewModal(letter) {
     if (menuLayer && menuLayer.style.display === 'block') return;
 
@@ -444,17 +503,15 @@ function openViewModal(letter) {
 
     headerZone.innerHTML = `<span class="day-badge">${letter.calculatedDay}일차</span><span class="sender-name">${letter.sender}의 편지</span>`;
     
-    // 1. 텍스트 바인딩 및 예외 처리 (텍스트가 아예 없거나 공백만 있다면 창 숨기기)
     const hasText = letter.content && letter.content.trim().length > 0;
     if (hasText) {
         textZone.innerText = letter.content;
-        textZone.style.display = 'block'; // 텍스트 표시
+        textZone.style.display = 'block'; 
     } else {
         textZone.innerText = "";
-        textZone.style.display = 'none';  // 🌟 [텍스트 없음 빈 공간 박멸] 텍스트 창 자체를 증발시킴
+        textZone.style.display = 'none';  
     }
     
-    // 다중 이미지 데이터 리스트 파싱
     activeImagesList = [];
     if (letter.imgs && letter.imgs.length > 0) {
         activeImagesList = letter.imgs;
@@ -464,24 +521,21 @@ function openViewModal(letter) {
 
     currentSliderIdx = 0;
 
-    // 2. [가로/세로 최적화 맞춤 크기 오케스트라]
     if (activeImagesList.length > 0) {
-        // 🖼️ 사진이 포함된 팝업인 경우: 화면을 시원하고 와이드하게 가득 채움
         modalContent.style.maxWidth = '1200px'; 
         containerZone.style.display = 'block';
         renderActiveSliderFrame(0, null);
     } else {
-        // 🔤 텍스트만 있는 팝업인 경우: 사진 영역을 숨기고 글자 수에 딱 맞게 슬림 피팅
         containerZone.style.display = 'none';
         document.getElementById('view-modal-img-box').innerHTML = "";
         
         const textLen = letter.content ? letter.content.trim().length : 0;
         if (textLen < 30) {
-            modalContent.style.maxWidth = '400px';   // 아주 단문일 때 귀엽게 밀착
+            modalContent.style.maxWidth = '400px';   
         } else if (textLen < 150) {
-            modalContent.style.maxWidth = '520px';   // 중문형 크기 방어
+            modalContent.style.maxWidth = '520px';   
         } else {
-            modalContent.style.maxWidth = '680px';   // 장문형 가로 폭
+            modalContent.style.maxWidth = '680px';   
         }
     }
 
@@ -490,7 +544,6 @@ function openViewModal(letter) {
     if(bodyZone) bodyZone.scrollTop = 0;
 }
 
-// [애니메이션 프레임 제어 엔진]
 function renderActiveSliderFrame(targetIdx, motionDirection) {
     const imgZone = document.getElementById('view-modal-img-box');
     
@@ -519,8 +572,10 @@ function renderActiveSliderFrame(targetIdx, motionDirection) {
     renderSliderDots(targetIdx);
     bindImageTransformEvents();
 }
+
 function renderSliderDots(activeIdx) {
     const indicator = document.getElementById('view-slider-indicator');
+    if(!indicator) return;
     indicator.innerHTML = "";
     activeImagesList.forEach((_, i) => {
         const dot = document.createElement('div');
@@ -529,7 +584,6 @@ function renderSliderDots(activeIdx) {
     });
 }
 
-// 🌟 슬라이드 제어 및 방향 판별자
 function navigateSlider(step) {
     const nextIdx = currentSliderIdx + step;
     if (nextIdx < 0 || nextIdx >= activeImagesList.length) return;
@@ -569,6 +623,45 @@ function bindImageTransformEvents() {
 }
 
 function closeViewModal(e) { viewModal.style.display = 'none'; isDraggingImg = false; }
-function copyLink() { navigator.clipboard.writeText(window.location.href); showToast("주소가 복사되었습니다!"); }
 
-initCheck();
+
+// ==========================================================================
+// 📌 7. [마법의 무서버 링크 추출기] 공유용 고밀도 링크 복사 시스템
+// ==========================================================================
+function copyLink() {
+    if (!roomCode) return;
+
+    try {
+        // 방 캐릭터 설정 정보와 편지 데이터를 하나의 캡슐 객체로 결합
+        const config = getCharacterConfig();
+        const packageData = {
+            roomCode: roomCode,
+            config: config,
+            letters: roomData
+        };
+
+        // 데이터 캡슐을 문자열로 변환하고 Base64로 정밀 압축 인코딩 진행
+        const jsonString = JSON.stringify(packageData);
+        const encodedData = btoa(encodeURIComponent(jsonString));
+        
+        // 데이터가 통째로 구워진 독립적 마법의 웹 링크 조립
+        const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}&data=${encodedData}`;
+
+        // 클립보드에 주소 주입 수행
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast("✉️ 편지 데이터가 포함된 특별 공유 링크가 복사되었습니다!");
+        }).catch(err => {
+            // 구형 기기 브라우저 대응 가상 textarea 풀백 로직
+            const tArea = document.createElement("textarea");
+            tArea.value = shareUrl;
+            document.body.appendChild(tArea);
+            tArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tArea);
+            showToast("✉️ 특별 공유 링크가 복사되었습니다!");
+        });
+    } catch (error) {
+        console.error("공유 링크 생성 실패:", error);
+        showToast("⚠️ 이미지 용량 등이 너무 커서 링크 생성에 실패했습니다. 사진 수를 조금 줄여보세요!");
+    }
+}
